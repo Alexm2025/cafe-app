@@ -33,6 +33,9 @@ create policy "Anyone can read the menu"
   to anon, authenticated
   using (true);
 
+-- A project with "Automatically expose new tables" left on grants the API
+-- roles everything on a new table, so start from nothing.
+revoke all on public.menu_items from anon, authenticated;
 grant select on public.menu_items to anon, authenticated;
 
 -- ---- Orders -----------------------------------------------------------------
@@ -70,6 +73,8 @@ create index order_lines_order_id_idx on public.order_lines (order_id);
 
 alter table public.orders      enable row level security;
 alter table public.order_lines enable row level security;
+
+revoke all on public.orders, public.order_lines from anon, authenticated;
 
 -- ---- place_order ------------------------------------------------------------
 
