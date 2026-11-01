@@ -198,6 +198,65 @@ class RecommenderTest {
         assertEquals(2, goesWellWith(emptyList(), "Latte", limit = 2).size)
     }
 
+    // ---- learned weights --------------------------------------------------
+
+    @Test
+    fun `with no history the weights are the priors`() {
+        assertEquals(Recommender.FOR_YOU_PRIOR, Recommender.learnForYouWeights(menu, emptyList(), utc))
+        assertEquals(Recommender.PAIRING_PRIOR, Recommender.learnPairingWeights(menu, emptyList()))
+    }
+
+    @Test
+    fun `a customer led by the time of day raises the daypart weight`() {
+        // A different espresso drink every morning and a different tea every evening.
+        val espresso = listOf("Americano", "Latte", "Cappuccino", "Flat White", "Mocha", "Cortado")
+        val tea = listOf("Earl Grey", "Green Sencha", "Masala Chai")
+        val history = (1..30).flatMap { days ->
+            listOf(
+                order(daysBefore(morning, days), espresso[days % espresso.size]),
+                order(daysBefore(evening, days), tea[days % tea.size])
+            )
+        }
+
+        val (_, daypart, _) = Recommender.learnForYouWeights(menu, history, utc)
+
+        assertTrue(daypart > Recommender.FOR_YOU_PRIOR[1])
+    }
+
+    @Test
+    fun `a customer who never orders popular items lowers the popular weight`() {
+        val usual = listOf("Pour Over", "Cortado", "Green Sencha")
+        val history = (1..30).map { days -> order(daysBefore(morning, days), usual[days % usual.size]) }
+
+        val (_, _, popular) = Recommender.learnForYouWeights(menu, history, utc)
+
+        assertTrue(popular < Recommender.FOR_YOU_PRIOR[2])
+    }
+
+    @Test
+    fun `a customer who pairs drinks with drinks is offered a drink, not food`() {
+        val pairs = listOf(
+            arrayOf("Latte", "Mocha"),
+            arrayOf("Cortado", "Flat White"),
+            arrayOf("Americano", "Latte"),
+            arrayOf("Earl Grey", "Masala Chai")
+        )
+        val history = (1..24).map { days -> order(daysBefore(morning, days), *pairs[days % pairs.size]) }
+        val cart = setOf(item("Cappuccino").id)
+
+        // The priors' drink-to-food rule wins on a drink never ordered before...
+        val byPrior = Recommender.goesWellWith(
+            menu, history, cart, morning, weights = Recommender.PAIRING_PRIOR
+        )
+        assertEquals("Butter Croissant", byPrior.first().name)
+
+        // ...but the learned weights know this customer.
+        val learned = Recommender.goesWellWith(menu, history, cart, morning)
+        assertTrue(learned.first().sizable)
+        val (_, complement, _, _) = Recommender.learnPairingWeights(menu, history)
+        assertTrue(complement < Recommender.PAIRING_PRIOR[1])
+    }
+
     // ---- daypart ----------------------------------------------------------
 
     @Test

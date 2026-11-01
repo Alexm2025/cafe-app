@@ -79,17 +79,23 @@ class CafeRepository(
         Recommender.forYou(menu, history, System.currentTimeMillis())
     }.flowOn(Dispatchers.Default)
 
-    /** The cart's "Goes well with" row; never suggests what is already in the cart. */
+    /**
+     * The cart's "Goes well with" row; never suggests what is already in the cart.
+     * Learning the weights replays the whole history, so it reruns when the menu
+     * or history changes, not on every cart edit.
+     */
     fun observeCartPairings(): Flow<List<MenuItem>> = combine(
-        menuDao.observeMenu(null, ""),
-        orderDao.observeOrders(),
+        combine(menuDao.observeMenu(null, ""), orderDao.observeOrders()) { menu, history ->
+            Triple(menu, history, Recommender.learnPairingWeights(menu, history))
+        },
         cartDao.observeCartLines()
-    ) { menu, history, cart ->
+    ) { (menu, history, weights), cart ->
         Recommender.goesWellWith(
             menu,
             history,
             cart.mapTo(HashSet()) { it.cartItem.menuItemId },
-            System.currentTimeMillis()
+            System.currentTimeMillis(),
+            weights = weights
         )
     }.flowOn(Dispatchers.Default)
 

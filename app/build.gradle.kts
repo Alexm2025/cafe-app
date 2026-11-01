@@ -98,6 +98,9 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.ktor.client.okhttp)
 
+    // Fits the recommendation weights (data/LogisticRegression.kt).
+    implementation(libs.smile.core)
+
     testImplementation(libs.junit)
     // AndroidJUnit4 (a runner that delegates to Robolectric off-device) and
     // ApplicationProvider. Robolectric gives the Room tests a real SQLite.
