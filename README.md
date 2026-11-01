@@ -12,7 +12,7 @@ device, so they survive an app restart and the menu works offline.
 
 | Screen | What it does |
 | --- | --- |
-| **Menu** | Search box, horizontal category filters, list of available items with a quick-add button; a new search or filter starts from the top of the list. A **For you** row at the top ranks items from your own order history. Popular items carry a tag beside the price. Quick-add confirms with a snackbar above the bottom bar, so Cart stays one tap away. Tapping an item's emoji opens a half-screen sheet with a looping video of it and its description. |
+| **Menu** | Search box, horizontal category filters, list of available items with a quick-add button; a new search or filter starts from the top of the list. A **For you** row at the top ranks items from your own order history, using weights learned on the device by logistic regression (the Smile ML library). Popular items carry a tag beside the price. Quick-add confirms with a snackbar above the bottom bar, so Cart stays one tap away. Tapping an item's emoji opens a half-screen sheet with a looping video of it and its description. |
 | **Item detail** | Size selector (drinks only), quantity stepper, live total, add to cart. |
 | **Cart** | Per-line quantity steppers and remove, a **Goes well with** row of suggestions, subtotal / tax / total, empty state. |
 | **Checkout** | Name, pickup vs dine-in, note for the barista, order summary. |
@@ -68,7 +68,8 @@ Everything lives in `src/test/` and runs on the JVM — no emulator, no device:
 | Suite | Covers |
 | --- | --- |
 | `PricingTest` | Plain JUnit. Integer tax arithmetic: the exact-half-cent boundary, monotonicity, overflow at the top of the `Int` range, and that the displayed rate matches the rate charged. |
-| `RecommenderTest` | Plain JUnit. The recommendation model: frequency and recency, time-of-day category fit, pairings from past orders, the drink/food fallback before any history, and never suggesting what is unavailable or already in the cart. |
+| `RecommenderTest` | Plain JUnit. The recommendation model: frequency and recency, time-of-day category fit, pairings from past orders, the drink/food fallback before any history, and never suggesting what is unavailable or already in the cart. Covers the learned weights too: they equal the priors with no history, and they move with the customer's habits (time of day, avoiding popular items, pairing drinks with drinks). |
+| `LogisticRegressionTest` | Plain JUnit. The Smile-backed fitter behind those weights: recovers known coefficients from synthetic data, returns the prior with no data or a single class, moves further from the prior as examples build up, and a stronger prior holds the weights closer. |
 | `CafeRepositoryTest` | An in-memory Room database under [Robolectric](https://robolectric.org), with a fake backend. Cart merging under 24 concurrent adds; order placement storing the server's receipt, keeping the cart when the server fails, and rolling back cleanly when a local write fails; menu refresh upserting without emptying the cart. |
 
 Robolectric downloads an `android-all` jar on first run, so the initial
